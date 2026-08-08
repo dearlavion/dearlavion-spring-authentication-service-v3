@@ -1,4 +1,6 @@
-package com.dearlavion.authservice.user;
+package com.dearlavion.authservice.user.response;
+
+import com.dearlavion.authservice.user.model.Role;
 
 /** Public projection of a user (no password), returned by GET /auth/user/{username} and the
  * admin user-management endpoints. */

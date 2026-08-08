@@ -1,7 +1,7 @@
-package com.dearlavion.authservice.auth;
+package com.dearlavion.authservice.auth.response;
 
-import com.dearlavion.authservice.user.AuthType;
-import com.dearlavion.authservice.user.Role;
+import com.dearlavion.authservice.user.model.AuthType;
+import com.dearlavion.authservice.user.model.Role;
 
 /** Login response user object — excludes the password hash. */
 public record LoginUserView(

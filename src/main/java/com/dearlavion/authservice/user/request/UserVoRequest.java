@@ -1,4 +1,6 @@
-package com.dearlavion.authservice.user;
+package com.dearlavion.authservice.user.request;
+
+import com.dearlavion.authservice.user.model.Role;
 
 /** Mirrors the NestJS UserVoDto used across register/login/update — every field optional; which
  * ones matter depends on the endpoint/strategy consuming it, exactly like the TS source. */

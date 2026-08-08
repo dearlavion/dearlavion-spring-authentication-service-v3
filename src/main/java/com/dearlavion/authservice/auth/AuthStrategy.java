@@ -1,8 +1,8 @@
 package com.dearlavion.authservice.auth;
 
-import com.dearlavion.authservice.user.AuthType;
-import com.dearlavion.authservice.user.User;
-import com.dearlavion.authservice.user.UserVoRequest;
+import com.dearlavion.authservice.user.model.AuthType;
+import com.dearlavion.authservice.user.model.User;
+import com.dearlavion.authservice.user.request.UserVoRequest;
 
 public interface AuthStrategy {
     AuthType type();

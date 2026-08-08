@@ -1,4 +1,4 @@
-package com.dearlavion.authservice.user;
+package com.dearlavion.authservice.user.model;
 
 /** Access role. ADMIN/STAFF are privileged (admin on consuming backends); USER is a normal user. */
 public enum Role {

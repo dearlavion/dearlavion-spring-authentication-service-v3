@@ -1,8 +1,8 @@
 package com.dearlavion.authservice.security;
 
 import com.dearlavion.authservice.common.exception.ApiError;
-import com.dearlavion.authservice.user.Role;
-import com.dearlavion.authservice.user.User;
+import com.dearlavion.authservice.user.model.Role;
+import com.dearlavion.authservice.user.model.User;
 import com.dearlavion.authservice.user.UserService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;

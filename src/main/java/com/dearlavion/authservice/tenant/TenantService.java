@@ -1,7 +1,7 @@
 package com.dearlavion.authservice.tenant;
 
 import com.dearlavion.authservice.common.exception.BadRequestException;
-import com.dearlavion.authservice.user.User;
+import com.dearlavion.authservice.user.model.User;
 import com.mongodb.client.MongoClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Sort;

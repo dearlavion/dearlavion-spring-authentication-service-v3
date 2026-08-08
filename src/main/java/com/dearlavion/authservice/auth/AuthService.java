@@ -3,8 +3,8 @@ package com.dearlavion.authservice.auth;
 import com.dearlavion.authservice.common.exception.BadRequestException;
 import com.dearlavion.authservice.kafka.AuthEventPublisher;
 import com.dearlavion.authservice.kafka.AuthEventType;
-import com.dearlavion.authservice.user.AuthType;
-import com.dearlavion.authservice.user.User;
+import com.dearlavion.authservice.user.model.AuthType;
+import com.dearlavion.authservice.user.model.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

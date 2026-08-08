@@ -1,4 +1,4 @@
-package com.dearlavion.authservice.auth;
+package com.dearlavion.authservice.auth.request;
 
 public record VerifyGoogleRequest(String idToken) {
 }

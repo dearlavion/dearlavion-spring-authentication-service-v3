@@ -3,6 +3,10 @@ package com.dearlavion.authservice.user;
 import com.dearlavion.authservice.common.exception.ConflictException;
 import com.dearlavion.authservice.common.exception.NotFoundException;
 import com.dearlavion.authservice.tenant.TenantService;
+import com.dearlavion.authservice.user.model.AuthType;
+import com.dearlavion.authservice.user.model.User;
+import com.dearlavion.authservice.user.request.UserVoRequest;
+import com.dearlavion.authservice.user.response.UserView;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -19,6 +23,7 @@ import java.util.List;
 public class UserService {
 
     private final TenantService tenants;
+    private final UserMapper mapper;
     private final PasswordEncoder passwordEncoder;
 
     public User findByUsername(String customer, String username) {
@@ -39,14 +44,7 @@ public class UserService {
 
     public User registerUser(String customer, UserVoRequest vo, AuthType type) {
         MongoTemplate db = tenants.db(customer);
-        User user = new User();
-        user.setUsername(vo.username());
-        user.setEmail(vo.email());
-        user.setPhone(vo.phone());
-        user.setPassword(vo.password() != null ? passwordEncoder.encode(vo.password()) : null);
-        // Already gated by the controller (privileged roles need X-Provision-Secret); defaults to USER.
-        if (vo.activeProfile() != null) user.setActiveProfile(vo.activeProfile());
-        user.setType(type);
+        User user = mapper.toEntity(vo, type);
         try {
             return db.insert(user);
         } catch (DuplicateKeyException e) {
@@ -56,12 +54,7 @@ public class UserService {
 
     public User updateUser(String customer, String username, UserVoRequest u) {
         User user = loadByUsernameOrThrow(customer, username);
-        if (u.firstname() != null) user.setFirstname(u.firstname());
-        if (u.lastname() != null) user.setLastname(u.lastname());
-        if (u.email() != null) user.setEmail(u.email());
-        if (u.phone() != null) user.setPhone(u.phone());
-        if (u.activeProfile() != null) user.setActiveProfile(u.activeProfile());
-        if (u.image() != null) user.setImage(u.image());
+        mapper.applyPatch(user, u);
         return tenants.db(customer).save(user);
     }
 
@@ -86,9 +79,6 @@ public class UserService {
     }
 
     public UserView toView(User user) {
-        return new UserView(
-                user.getUsername(), user.getEmail(), user.getFirstname(), user.getLastname(),
-                user.getPhone(), user.getImage(), user.getActiveProfile(), user.isActive()
-        );
+        return mapper.toView(user);
     }
 }

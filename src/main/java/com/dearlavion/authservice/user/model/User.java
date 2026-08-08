@@ -1,4 +1,4 @@
-package com.dearlavion.authservice.user;
+package com.dearlavion.authservice.user.model;
 
 import lombok.Getter;
 import lombok.Setter;

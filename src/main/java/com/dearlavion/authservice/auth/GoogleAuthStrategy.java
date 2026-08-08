@@ -2,10 +2,10 @@ package com.dearlavion.authservice.auth;
 
 import com.dearlavion.authservice.common.exception.ConflictException;
 import com.dearlavion.authservice.common.exception.UnauthorizedException;
-import com.dearlavion.authservice.user.AuthType;
-import com.dearlavion.authservice.user.User;
+import com.dearlavion.authservice.user.model.AuthType;
+import com.dearlavion.authservice.user.model.User;
 import com.dearlavion.authservice.user.UserService;
-import com.dearlavion.authservice.user.UserVoRequest;
+import com.dearlavion.authservice.user.request.UserVoRequest;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;

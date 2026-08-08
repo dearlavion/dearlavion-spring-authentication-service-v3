@@ -3,7 +3,7 @@ package com.dearlavion.authservice.auth;
 import com.dearlavion.authservice.common.exception.UnauthorizedException;
 import com.dearlavion.authservice.security.JwtTokenService;
 import com.dearlavion.authservice.security.TokenClaims;
-import com.dearlavion.authservice.user.User;
+import com.dearlavion.authservice.user.model.User;
 import com.dearlavion.authservice.user.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

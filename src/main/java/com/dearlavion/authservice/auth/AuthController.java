@@ -1,14 +1,20 @@
 package com.dearlavion.authservice.auth;
 
+import com.dearlavion.authservice.auth.request.ResetPasswordRequest;
+import com.dearlavion.authservice.auth.request.VerifyGoogleRequest;
+import com.dearlavion.authservice.auth.request.VerifyRequest;
+import com.dearlavion.authservice.auth.response.LoginResponse;
+import com.dearlavion.authservice.auth.response.LoginUserView;
+import com.dearlavion.authservice.auth.response.VerifyResult;
 import com.dearlavion.authservice.common.exception.BadRequestException;
 import com.dearlavion.authservice.common.exception.UnauthorizedException;
 import com.dearlavion.authservice.security.JwtTokenService;
 import com.dearlavion.authservice.security.TokenClaims;
-import com.dearlavion.authservice.user.AuthType;
-import com.dearlavion.authservice.user.Role;
-import com.dearlavion.authservice.user.User;
+import com.dearlavion.authservice.user.model.AuthType;
+import com.dearlavion.authservice.user.model.Role;
+import com.dearlavion.authservice.user.model.User;
 import com.dearlavion.authservice.user.UserService;
-import com.dearlavion.authservice.user.UserVoRequest;
+import com.dearlavion.authservice.user.request.UserVoRequest;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,6 +32,7 @@ public class AuthController {
     private final JwtTokenService jwtTokenService;
     private final PasswordResetService passwordResetService;
     private final GoogleVerifierService googleVerifier;
+    private final AuthMapper authMapper;
 
     @Value("${app.google-enabled}")
     private boolean googleEnabled;
@@ -85,7 +92,7 @@ public class AuthController {
     }
 
     @GetMapping("/user/{username}")
-    public com.dearlavion.authservice.user.UserView getUser(
+    public com.dearlavion.authservice.user.response.UserView getUser(
             @RequestHeader(value = "X-Customer", required = false) String customer,
             @PathVariable String username
     ) {
@@ -104,7 +111,7 @@ public class AuthController {
         User user = strategy.authenticate(request, customer);
         if (!user.isActive()) throw new UnauthorizedException("Account is deactivated");
         String token = jwtTokenService.generateToken(user.getUsername(), customer);
-        return new LoginResponse(token, userResponse(user, customer));
+        return new LoginResponse(token, authMapper.toLoginUserView(user, customer));
     }
 
     @PostMapping("/forgot-password")
@@ -161,12 +168,5 @@ public class AuthController {
         }
         GoogleIdToken.Payload payload = googleVerifier.verify(body.idToken());
         return Map.of("email", payload.getEmail());
-    }
-
-    private LoginUserView userResponse(User user, String customer) {
-        return new LoginUserView(
-                user.getId(), user.getUsername(), user.getEmail(), user.getFirstname(), user.getLastname(),
-                user.getPhone(), user.getImage(), user.getActiveProfile(), user.getType(), customer
-        );
     }
 }
