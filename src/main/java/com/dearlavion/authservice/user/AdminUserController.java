@@ -1,0 +1,59 @@
+package com.dearlavion.authservice.user;
+
+import com.dearlavion.authservice.security.AdminAuthFilter;
+import com.dearlavion.authservice.security.AdminRequestUser;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
+
+/** Admin-only user management, scoped to the caller's own tenant (AdminAuthFilter resolves the
+ * tenant from the caller's own signed JWT claim, never a client-supplied header). Backs the
+ * frontend's /admin/users section. */
+@RestController
+@RequestMapping("/admin/users")
+@RequiredArgsConstructor
+public class AdminUserController {
+
+    private final UserService userService;
+
+    @GetMapping
+    public List<UserView> list(@RequestAttribute(AdminAuthFilter.ADMIN_USER_ATTRIBUTE) AdminRequestUser admin) {
+        return userService.listUsers(admin.customer()).stream().map(userService::toView).toList();
+    }
+
+    @GetMapping("/{username}")
+    public UserView get(@RequestAttribute(AdminAuthFilter.ADMIN_USER_ATTRIBUTE) AdminRequestUser admin,
+                         @PathVariable String username) {
+        return userService.toView(userService.loadByUsernameOrThrow(admin.customer(), username));
+    }
+
+    /** Creates directly via the shared register path, role taken straight from the body — the
+     * caller's bearer token already proves they're a real admin, so (unlike the public
+     * /auth/register endpoint) there's no X-Provision-Secret to thread through the frontend. */
+    @PostMapping
+    public UserView create(@RequestAttribute(AdminAuthFilter.ADMIN_USER_ATTRIBUTE) AdminRequestUser admin,
+                            @RequestBody UserVoRequest body) {
+        return userService.toView(userService.registerUser(admin.customer(), body, AuthType.SIMPLE));
+    }
+
+    @PatchMapping("/{username}")
+    public UserView update(@RequestAttribute(AdminAuthFilter.ADMIN_USER_ATTRIBUTE) AdminRequestUser admin,
+                            @PathVariable String username, @RequestBody UserVoRequest body) {
+        return userService.toView(userService.updateUser(admin.customer(), username, body));
+    }
+
+    @PatchMapping("/{username}/active")
+    public UserView setActive(@RequestAttribute(AdminAuthFilter.ADMIN_USER_ATTRIBUTE) AdminRequestUser admin,
+                               @PathVariable String username, @RequestBody Map<String, Boolean> body) {
+        return userService.toView(userService.setActive(admin.customer(), username, Boolean.TRUE.equals(body.get("active"))));
+    }
+
+    @PatchMapping("/{username}/password")
+    public Map<String, String> setPassword(@RequestAttribute(AdminAuthFilter.ADMIN_USER_ATTRIBUTE) AdminRequestUser admin,
+                                            @PathVariable String username, @RequestBody Map<String, String> body) {
+        userService.updatePassword(admin.customer(), username, body.get("password"));
+        return Map.of("message", "Password updated");
+    }
+}

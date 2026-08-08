@@ -1,0 +1,123 @@
+# dearlavion-spring-authentication-service-v3
+
+Spring Boot (Java 21) port of `dearlavion-authentication-service-v2` (NestJS), which was itself a
+port of the original Java `dearlavion-authentication-service`. This service is built the same way
+that original was — Maven, Spring Boot, `spring-security-crypto`'s `BCryptPasswordEncoder`, the
+`jjwt` library — while carrying forward everything v2 added on top: multi-tenancy, the `active`
+soft-delete flag, admin user management, and provision-secret-gated role assignment.
+
+The **keystone** service — every other backend verifies bearer tokens against its
+`POST /auth/verify`. Runs **alongside** v1 and v2 on a **new port (9082)**, multi-tenant like v2 —
+one instance serves many customers, each with its own `authentication-<customer>` MongoDB database.
+
+## Multi-tenancy (per-customer isolation)
+
+One instance serves many customers, allowlisted in `CUSTOMERS`. The tenant is chosen per request —
+the `X-Customer` header on credential endpoints, the token's `customer` claim on
+`verify`/`reset-password` — and each customer's users live in an isolated
+`authentication-<customer>` database, resolved dynamically per request via a `MongoTemplate` built
+against that database name (not a fixed `MongoRepository`, which is bound to one database at
+startup). Onboard a customer by adding its slug to `CUSTOMERS` and restarting — no new instance, no
+code changes; its database and unique username/email indexes are created automatically on first
+touch.
+
+## Registering customers, users & admins
+
+Same three-level model as v2: a **customer** (tenant) is config; **users** and **admins** are
+created via the API, scoped by the `X-Customer` header.
+
+Roles (`activeProfile`) are `ADMIN`, `STAFF` (both privileged) and `USER` (default). Assigning a
+privileged role is gated by the `X-Provision-Secret` header (matching `PROVISION_SECRET`), so the
+public signup endpoint can't self-grant admin.
+
+```bash
+# Register a regular user (always created as USER regardless of body)
+curl -X POST http://localhost:9082/auth/register \
+  -H 'Content-Type: application/json' -H 'X-Customer: dearlavion' \
+  -d '{"username":"traveler","email":"traveler@example.com","password":"secret123"}'
+
+# Register an admin (needs the provision secret)
+curl -X POST http://localhost:9082/auth/register \
+  -H 'Content-Type: application/json' -H 'X-Customer: dearlavion' \
+  -H 'X-Provision-Secret: <PROVISION_SECRET>' \
+  -d '{"username":"owner","email":"owner@example.com","password":"secret123","activeProfile":"ADMIN"}'
+```
+
+Without a valid `X-Provision-Secret`, both `register` and `PATCH /auth/user/{username}` silently
+force/ignore the role so the user stays `USER`. If `PROVISION_SECRET` is unset, privileged roles
+can't be assigned via the API at all (fail closed).
+
+## Token & password interoperability
+
+- **JWT**: HS256, key = the base64-decoded secret, claims `{ username, customer, sub, iat, exp }`,
+  24h by default. Set `JWT_SECRET` to the **same value** the v1/v2 instances use if you need tokens
+  to verify across all three — this service does **not** ship with a real default secret (unlike
+  the sibling v1/v2 services, which bake one into source); the shipped placeholder deliberately
+  won't interoperate until you configure it explicitly.
+- **Passwords**: bcrypt (Spring's `BCryptPasswordEncoder`, strength 10) — hash-compatible with
+  bcryptjs (v2) and Spring's own encoder (v1), so passwords verify across all three stacks.
+- Same `users` collection shape and field names, one per tenant database.
+
+## Endpoints (`/auth`)
+
+Credential endpoints require the `X-Customer` header; `verify`/`reset-password` read the tenant
+from the token instead. An unknown/missing customer on a header-scoped call → 400.
+
+| Method | Path | `X-Customer`? | Notes |
+|---|---|---|---|
+| POST | `/register?type=SIMPLE&googleToken=` | required | 200 `{message, user}`; 409 if the user exists |
+| POST | `/login?type=SIMPLE` | required | 200 `{token, user}`; 401 on bad creds or deactivated account |
+| POST | `/verify` | — (from token) | `{token}` → `{valid, username, email, userId, activeProfile, customer}`; 401 `{valid:false}` on any failure |
+| GET | `/user/{username}` | required | public user view (no password) |
+| PATCH | `/user/{username}` | required | role change requires `X-Provision-Secret` |
+| POST | `/forgot-password?email=` | required | always 200; silent no-op if the email is unknown |
+| POST | `/reset-password` | — (from token) | `{token, newPassword}` → 200 |
+| POST | `/verify-google` | — | `{idToken}` → `{email}` |
+
+## Admin user management (`/admin/users`)
+
+Guarded locally (no HTTP round-trip to itself): decode the Bearer JWT, resolve the tenant from its
+own signed `customer` claim (never a client header), require `activeProfile` ∈ `{ADMIN, STAFF}`.
+No token → 401; bad/expired token → 401; wrong role → 403.
+
+`GET /admin/users`, `GET /admin/users/{username}`, `POST /admin/users`,
+`PATCH /admin/users/{username}`, `PATCH /admin/users/{username}/active`,
+`PATCH /admin/users/{username}/password`.
+
+## Events (Kafka)
+
+Topic `authentication-service-event`, `{ type, payload }` envelope — `NEW_USER` on register,
+`RESET_PASSWORD` on forgot-password, matching v1/v2 so `notification-service` consumes them
+unchanged. Set `KAFKA_ENABLED=false` to no-op publishing (e.g. for local dev without a broker).
+
+## Commands
+
+```bash
+mvn compile
+mvn test              # Testcontainers integration tests (needs Docker, Kafka disabled for the run)
+mvn spring-boot:run    # dev server on :9082
+```
+
+## Configuration (env vars)
+
+| Var | Default |
+|---|---|
+| `PORT` | 9082 |
+| `CUSTOMERS` | `dearlavion` — comma-separated tenant allowlist |
+| `PROVISION_SECRET` | *(empty)* — operator-generated (`openssl rand -hex 32`); required via `X-Provision-Secret` to assign `ADMIN`/`STAFF` |
+| `MONGODB_URI` | `mongodb://localhost:27017/authentication-service` — base connection; per-tenant databases are `authentication-<customer>` |
+| `JWT_SECRET` | placeholder — **must** be set explicitly to interoperate with v1/v2 |
+| `JWT_EXPIRES_IN_SECONDS` / `JWT_RESET_EXPIRES_IN_SECONDS` | 86400 (24h) / 900 (15m) |
+| `KAFKA_ENABLED` / `KAFKA_BROKERS` / `KAFKA_CLIENT_ID` | true / `localhost:29092` / `dearlavion-spring-authentication-service-v3` |
+| `GOOGLE_ENABLED` / `GOOGLE_CLIENT_ID` | true / *(empty)* |
+| `FRONTEND_ORIGINS` | *(empty)* — extra CORS origins beyond the built-in dearlavion.site/localhost:4200/ngrok.pizza list |
+
+Health at `/actuator/health` (matches v1's path), Swagger at `/swagger-ui/index.html`.
+
+## Verification performed
+
+7 Testcontainers integration tests: register/login/verify round trip, multi-tenant isolation (same
+username under different customers resolves to different accounts and different passwords), unknown
+customer rejection, provision-secret role gating, the admin-guard's exact 401 (no/bad token) vs 403
+(wrong role) distinction, and soft-delete blocking login. Plus a live curl smoke test against a real
+MongoDB instance.

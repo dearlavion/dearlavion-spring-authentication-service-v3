@@ -1,0 +1,15 @@
+package com.dearlavion.authservice.user;
+
+/** Public projection of a user (no password), returned by GET /auth/user/{username} and the
+ * admin user-management endpoints. */
+public record UserView(
+        String username,
+        String email,
+        String firstname,
+        String lastname,
+        String phone,
+        String image,
+        Role activeProfile,
+        boolean active
+) {
+}
