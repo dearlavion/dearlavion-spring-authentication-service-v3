@@ -1,6 +1,7 @@
 package com.dearlavion.authservice.auth;
 
 import com.dearlavion.authservice.auth.request.ResetPasswordRequest;
+import com.dearlavion.authservice.auth.request.UpdateEmailRequest;
 import com.dearlavion.authservice.auth.request.VerifyGoogleRequest;
 import com.dearlavion.authservice.auth.request.VerifyRequest;
 import com.dearlavion.authservice.auth.response.LoginResponse;
@@ -98,6 +99,30 @@ public class AuthController {
     ) {
         User user = userService.loadByUsernameOrThrow(customer, username);
         return userService.toView(user);
+    }
+
+    /** Self-service: update the CALLING user's own email. Unlike PATCH /auth/user/{username}
+     * above (an internal, service-to-service endpoint — no bearer check, trusts the path
+     * username as-is), this resolves the target user from the caller's own verified JWT, never
+     * from client input, so an authenticated caller can only ever edit their own account. */
+    @PatchMapping("/me")
+    public com.dearlavion.authservice.user.response.UserView updateMe(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestBody UpdateEmailRequest body
+    ) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            throw new UnauthorizedException("Authentication required");
+        }
+        TokenClaims claims = jwtTokenService.verifyToken(authHeader.substring(7));
+        if (claims == null || claims.customer() == null) {
+            throw new UnauthorizedException("Invalid or expired token");
+        }
+        if (body == null || body.email() == null || body.email().isBlank()) {
+            throw new BadRequestException("Email is required");
+        }
+        User updated = userService.updateUser(claims.customer(), claims.username(),
+                new UserVoRequest(null, null, null, body.email(), null, null, null, null, null));
+        return userService.toView(updated);
     }
 
     @PostMapping("/login")
