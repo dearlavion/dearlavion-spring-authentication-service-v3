@@ -10,6 +10,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -45,7 +46,11 @@ public class AdminAuthFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-        if (!request.getServletPath().startsWith("/admin/")) {
+        // CORS preflight never carries credentials by design — browsers send it to ask "would the
+        // real request be allowed" before attaching the Authorization header. Rejecting it here
+        // (before CorsFilter gets a chance to answer) writes a 401 with no CORS headers at all,
+        // which the browser reports as a CORS failure rather than the real auth error.
+        if (!request.getServletPath().startsWith("/admin/") || HttpMethod.OPTIONS.matches(request.getMethod())) {
             filterChain.doFilter(request, response);
             return;
         }
