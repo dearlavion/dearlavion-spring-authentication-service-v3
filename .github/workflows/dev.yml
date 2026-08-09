@@ -79,5 +79,5 @@ jobs:
           ansible-playbook \
             playbook/site.yml \
             -i inventory/hosts.ini \
-            -e "target=auth-v3 env=dev ssh_user=baish ssh_host=157.173.97.37 use_registry=true ghcr_pat=${{ secrets.DEARLAVION_PAT }}" \
+            -e "target=travelbesty-auth env=dev ssh_user=baish ssh_host=157.173.97.37 use_registry=true ghcr_pat=${{ secrets.DEARLAVION_PAT }}" \
             --ssh-extra-args="-o StrictHostKeyChecking=no"
