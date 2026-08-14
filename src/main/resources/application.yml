@@ -16,12 +16,11 @@ app:
   # Secret required (via X-Provision-Secret) to set a privileged role at register/update time.
   # Empty => privileged roles can never be assigned through the API (fail closed).
   provision-secret: ${PROVISION_SECRET:}
-  # Base64 HMAC secret. No real default on purpose (unlike the sibling v1/v2 services, which bake
-  # a secret into source) — for v1/v2/v3 tokens to interoperate, JWT_SECRET must be set explicitly
-  # to the same value the other running instances use. This placeholder deliberately does NOT match
-  # them, so a misconfigured deploy fails to verify tokens loudly instead of silently trusting a
-  # secret that happens to be sitting in git history.
-  jwt-secret-base64: ${JWT_SECRET:CHANGE_ME_DEV_ONLY_SET_JWT_SECRET_ENV_VAR}
+  # Base64 HMAC secret. Defaults to the exact key the Java v1 JwtService bakes in and the NestJS v2
+  # configuration.ts falls back to (V1_JWT_KEY), so v1-, v2- and v3-issued tokens interoperate out
+  # of the box — same rule v2 follows. Override JWT_SECRET per environment; anywhere the secret
+  # actually matters it must be set, since this default is in public source.
+  jwt-secret-base64: ${JWT_SECRET:5B6F7D3E2A9C4B8E0A1F6D9B3E7A2C9D4F8E5B6C3A7B1D6F4C9A3E8D2B5F7A1}
   jwt-expires-in-seconds: ${JWT_EXPIRES_IN_SECONDS:86400}
   jwt-reset-expires-in-seconds: ${JWT_RESET_EXPIRES_IN_SECONDS:900}
   kafka-enabled: ${KAFKA_ENABLED:true}

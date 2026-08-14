@@ -19,7 +19,7 @@ the `X-Customer` header on credential endpoints, the token's `customer` claim on
 against that database name (not a fixed `MongoRepository`, which is bound to one database at
 startup). Onboard a customer by adding its slug to `CUSTOMERS` and restarting — no new instance, no
 code changes; its database and unique username/email indexes are created automatically on first
-touch.
+touch. See **[ONBOARDING-A-CUSTOMER.md](ONBOARDING-A-CUSTOMER.md)** for the step-by-step guide.
 
 ## Registering customers, users & admins
 
@@ -50,10 +50,12 @@ can't be assigned via the API at all (fail closed).
 ## Token & password interoperability
 
 - **JWT**: HS256, key = the base64-decoded secret, claims `{ username, customer, sub, iat, exp }`,
-  24h by default. Set `JWT_SECRET` to the **same value** the v1/v2 instances use if you need tokens
-  to verify across all three — this service does **not** ship with a real default secret (unlike
-  the sibling v1/v2 services, which bake one into source); the shipped placeholder deliberately
-  won't interoperate until you configure it explicitly.
+  24h by default. The secret **defaults to the same key the Java v1 `JwtService` bakes in and the
+  NestJS v2 `configuration.ts` falls back to** (`V1_JWT_KEY`), so v1-, v2- and v3-issued tokens
+  interoperate out of the box with no configuration — same rule v2 follows. The additive `customer`
+  claim is ignored by v1 verification, so tokens still verify on any of the three stacks.
+  Override `JWT_SECRET` per environment: this default lives in public source, so anywhere the
+  secret actually protects something it must be set explicitly.
 - **Passwords**: bcrypt (Spring's `BCryptPasswordEncoder`, strength 10) — hash-compatible with
   bcryptjs (v2) and Spring's own encoder (v1), so passwords verify across all three stacks.
 - Same `users` collection shape and field names, one per tenant database.
@@ -106,7 +108,7 @@ mvn spring-boot:run    # dev server on :9082
 | `CUSTOMERS` | `dearlavion` — comma-separated tenant allowlist |
 | `PROVISION_SECRET` | *(empty)* — operator-generated (`openssl rand -hex 32`); required via `X-Provision-Secret` to assign `ADMIN`/`STAFF` |
 | `MONGODB_URI` | `mongodb://localhost:27017/authentication-service` — base connection; per-tenant databases are `authentication-<customer>` |
-| `JWT_SECRET` | placeholder — **must** be set explicitly to interoperate with v1/v2 |
+| `JWT_SECRET` | the v1/v2 base64 key — interoperates out of the box; override per environment (the default is in public source) |
 | `JWT_EXPIRES_IN_SECONDS` / `JWT_RESET_EXPIRES_IN_SECONDS` | 86400 (24h) / 900 (15m) |
 | `KAFKA_ENABLED` / `KAFKA_BROKERS` / `KAFKA_CLIENT_ID` | true / `localhost:29092` / `dearlavion-spring-authentication-service-v3` |
 | `GOOGLE_ENABLED` / `GOOGLE_CLIENT_ID` | true / *(empty)* |
