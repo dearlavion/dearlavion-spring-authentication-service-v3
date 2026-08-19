@@ -1,7 +1,16 @@
 spring:
+  config:
+    # Same mechanism NestJS v2 gets for free by reading .env from the project root — without it,
+    # this service had no way to pick up the Atlas connection string and silently fell back to a
+    # local Mongo that no longer exists. Gitignored, so the credential never lands in the repo,
+    # a shell history, or `ps` output. Matches store-engine-v2.
+    import: optional:file:.env[.properties]
   data:
     mongodb:
-      uri: ${MONGODB_URI:mongodb://localhost:27017/authentication-service}
+      # No localhost fallback, deliberately: with one, a missing MONGODB_URI started the service
+      # against a non-existent local Mongo and every auth call hung, instead of failing at startup.
+      # Fail loudly, the same stance master-data-service takes.
+      uri: ${MONGODB_URI}
   kafka:
     bootstrap-servers: ${KAFKA_BROKERS:localhost:29092}
   jackson:
